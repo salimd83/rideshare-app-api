@@ -30,8 +30,7 @@ const handleNewUser = (user, db) => {
 
   function validateUser(user) {
     const errors = [];
-    if (!user.firstName) errors.push("Firstname is required");
-    if (!user.lastName) errors.push("Lastname is required");
+    if (!user.name) errors.push("Name is required");
     if (!user.email) {
       errors.push("Email is required");
     } else {
@@ -58,10 +57,11 @@ const handleNewUser = (user, db) => {
         const results = await handleNewUser(user, db);
         res.status(201).send(results);
       } catch (error) {
+        console.log(error);
         if (error instanceof ValidationError)
-          res.status(500).send({ message: error.message, errors: error.errors });
+          res.status(400).send({ message: error.message, errors: error.errors });
         else if (error.message.startsWith("E11000 duplicate"))
-          res.status(500).send("duplicate email.");
+          res.status(400).send({message: "duplicate email."});
         else res.status(500).send(error.message);
       }
     });
