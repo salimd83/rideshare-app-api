@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
+const Joi = require("joi");
 
 const app = express();
 app.use(cors());
@@ -18,43 +19,36 @@ const createUser = (user, db) => {
   });
 };
 
-function isEmail(email) {
-  return email.match(
-    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
-  );
-}
-
-function isPassword(pass) {
-  return pass.match(
-    /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/
-  );
-}
-
-function validateUser(user) {
-  const errors = '';
-  if (!user.name) errors.concat(", ", "Firstname is required");
-  if (!user.email) errors.concat(", ", "Email is required");
-  else if (!isEmail(user.email)) errors.concat(", ", "Wrong email format");
-  if (!user.password) errors.concat(", ", "Password is required");
-  else if (!isPassword(user.password)) errors.concat(", ", "Wrong password format");
-  return errors.substring(1);
-}
+const schema = Joi.object({
+  name: Joi.string().min(4).required(),
+  email: Joi.string().email(),
+  password: Joi.string().pattern(
+    new RegExp(
+      /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/
+    )
+  ),
+});
 
 const requestHandler = (db) => async (req, res) => {
-  const user = req.body;
+  const { name, email, password } = req.body;
   try {
-    const errors = validateUser(user);
-    if (errors.length > 0)
-      res.status(400).send({ message: 'validation error', details: errors });
-    user.password = await bcrypt.hash(user.password, 8);
-    const results = await createUser(user, db);
+    const { value, error } = schema.validate({ name, email, password });
+
+    if (error) return res.status(400).send({ error });
+
+    value.password = await bcrypt.hash(value.password, 8);
+
+    const results = await createUser(
+      { ...value, isEmailVerified: false, created_at: new Date() },
+      db
+    );
     res.status(201).send(results);
   } catch (error) {
     if (error.code === 11000)
       res.status(400).send({ message: "duplicate email." });
     else res.status(500).send(error.message);
   }
-}
+};
 
 app.setupRoutes = (db) => {
   app.post("/users", requestHandler(db));
