@@ -1,12 +1,12 @@
 const express = require("express");
 const cors = require("cors");
-const ValidationError = require("./errors/ValidationError");
+const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const handleNewUser = (user, db) => {
+const createUser = (user, db) => {
   return new Promise(async (resolve, reject) => {
     try {
       const users = db.collection("users");
@@ -19,52 +19,45 @@ const handleNewUser = (user, db) => {
 };
 
 function isEmail(email) {
-  const mailformat = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
-  return email.match(mailformat);
+  return email.match(
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
+  );
 }
 
 function isPassword(pass) {
-  const passformat = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/;
-  return pass.match(passformat);
+  return pass.match(
+    /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,15}$/
+  );
 }
 
 function validateUser(user) {
-  const errors = [];
-  if (!user.name) errors.push("Firstname is required");
-  if (!user.email) {
-    errors.push("Email is required");
-  } else {
-    if (!isEmail(user.email)) errors.push("Wrong email format.");
+  const errors = '';
+  if (!user.name) errors.concat(", ", "Firstname is required");
+  if (!user.email) errors.concat(", ", "Email is required");
+  else if (!isEmail(user.email)) errors.concat(", ", "Wrong email format");
+  if (!user.password) errors.concat(", ", "Password is required");
+  else if (!isPassword(user.password)) errors.concat(", ", "Wrong password format");
+  return errors.substring(1);
+}
+
+const requestHandler = (db) => async (req, res) => {
+  const user = req.body;
+  try {
+    const errors = validateUser(user);
+    if (errors.length > 0)
+      res.status(400).send({ message: 'validation error', details: errors });
+    user.password = await bcrypt.hash(user.password, 8);
+    const results = await createUser(user, db);
+    res.status(201).send(results);
+  } catch (error) {
+    if (error.code === 11000)
+      res.status(400).send({ message: "duplicate email." });
+    else res.status(500).send(error.message);
   }
-  if (!user.password) {
-    errors.push("Password is required");
-  } else {
-    if (!isPassword(user.password))
-      errors.push(
-        "Wrong password format it must be between 8 to 15 characters which contain at least one lowercase letter, one uppercase letter, one numeric digit, and one special character."
-      );
-  }
-  return errors;
 }
 
 app.setupRoutes = (db) => {
-  app.post("/users", async (req, res) => {
-    const user = req.body;
-    try {
-      const errors = validateUser(user);
-      if (errors.length > 0)
-        throw new ValidationError(errors, "Validation Error");
-      const results = await handleNewUser(user, db);
-      res.status(201).send(results);
-    } catch (error) {
-      console.log(error)
-      if (error instanceof ValidationError)
-        res.status(400).send({ message: error.message, errors: error.errors });
-      else if (error.message.startsWith("E11000 duplicate"))
-        res.status(400).send({ message: "duplicate email." });
-      else res.status(500).send(error.message);
-    }
-  });
+  app.post("/users", requestHandler(db));
 };
 
 module.exports = app;
