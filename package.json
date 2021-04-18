@@ -18,7 +18,8 @@
     "express": "^4.17.1",
     "joi": "^17.4.0",
     "jsonwebtoken": "^8.5.1",
-    "mongodb": "^3.6.5"
+    "mongodb": "^3.6.5",
+    "nodemailer": "^6.5.0"
   },
   "devDependencies": {
     "supertest": "^6.1.3",
