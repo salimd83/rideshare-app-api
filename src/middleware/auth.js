@@ -12,7 +12,7 @@ const auth = (db) => async (req, res, next) => {
     req.token = token;
     next();
   } catch (error) {
-      res.sendStatus(403);
+      res.status(403).send({message: error.message});
   }
 };
 

@@ -1,9 +1,14 @@
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (token) => {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  if (Date.now() >= decoded.exp * 1000) throw new Error();
-  return decoded;
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+    // if (Date.now() >= decoded.exp * 1000) throw new Error();
+    // return decoded;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error.message);
+  }
 };
 
 const signToken = (id, exp = "1h") => {
@@ -14,5 +19,5 @@ const signToken = (id, exp = "1h") => {
 
 module.exports = {
   verifyToken,
-  signToken
+  signToken,
 };

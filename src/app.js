@@ -79,13 +79,12 @@ const requestHandler = (db) => async (req, res) => {
     if (error) return res.status(400).send({ error });
 
     value.password = await bcrypt.hash(value.password, 8);
-
-    await createUser(
+    const id = await createUser(
       { ...value, isEmailVerified: false, createdAt: new Date() },
       db
     );
 
-    const token = signToken(value._id);
+    const token = signToken(id);
 
     res.status(201).send({ token });
   } catch (error) {
@@ -132,7 +131,7 @@ const sendVerificationRequestHandler = async (req, res) => {
       req.body.redirect,
       req.body.redirect2
     );
-    res.send();
+    res.send({});
   } catch (error) {
     console.error(error);
     res.sendStatus(500);
@@ -148,7 +147,7 @@ const verificationRequestHandler = (db) => async (req, res) => {
     if (!user) return res.sendStatus(401);
 
     if (user.isEmailVerified)
-      return res.redirect(req.query.re + "?m=email already verified");
+      return res.redirect(req.query.re + "?m=verified");
 
     await users.updateOne(
       { _id: user._id },
@@ -158,13 +157,23 @@ const verificationRequestHandler = (db) => async (req, res) => {
     res.redirect(req.query.r);
   } catch (error) {
     console.log(error);
-    res.redirect(req.query.re + "?m=token expired");
+    res.redirect(req.query.re + "?m=expired");
   }
+};
+
+const currentUserRequestHandler = (req, res) => {
+  res.send({
+    name: req.user.name,
+    email: req.user.email,
+    isEmailVerified: req.user.isEmailVerified,
+    createdAt: req.user.createdAt,
+  });
 };
 
 app.setupRoutes = (db) => {
   app.post("/users", requestHandler(db));
   app.post("/users/login", loginRequestHandler(db));
+  app.get("/users/current", auth(db), currentUserRequestHandler);
   app.post("/users/verification", auth(db), sendVerificationRequestHandler);
   app.get("/users/verification", verificationRequestHandler(db));
 };
