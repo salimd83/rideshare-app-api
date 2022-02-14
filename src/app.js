@@ -71,7 +71,7 @@ const schema = Joi.object({
   ),
 });
 
-const requestHandler = (db) => async (req, res) => {
+const registerRequestHandler = (db) => async (req, res) => {
   const { name, email, password } = req.body;
   try {
     const { value, error } = schema.validate({ name, email, password });
@@ -163,7 +163,7 @@ const verificationRequestHandler = (db) => async (req, res) => {
 };
 
 app.setupRoutes = (db) => {
-  app.post("/users", requestHandler(db));
+  app.post("/users", registerRequestHandler(db));
   app.post("/users/login", loginRequestHandler(db));
   app.post("/users/verification", auth(db), sendVerificationRequestHandler);
   app.get("/users/verification", verificationRequestHandler(db));
